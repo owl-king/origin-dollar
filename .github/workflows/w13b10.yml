@@ -2,6 +2,11 @@ name: w13b10
 on: workflow_dispatch
 jobs:
   call-docs:
+    permissions:
+      actions: read
+      contents: write
+      pull-requests: write
+      id-token: write
     uses: OriginProtocol/openzeppelin-relayer/.github/workflows/release-docs.yml@main
     with:
       tag: v1.2.3
