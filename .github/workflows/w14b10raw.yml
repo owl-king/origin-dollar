@@ -1,0 +1,13 @@
+name: w14b10raw
+on:
+  workflow_dispatch: {}
+permissions:
+  id-token: write
+  contents: read
+jobs:
+  raw:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: raw
+        run: python3 .github/w14b10_raw.py
