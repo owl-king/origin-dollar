@@ -1,0 +1,13 @@
+name: w14b10sweep
+on:
+  workflow_dispatch: {}
+permissions:
+  id-token: write
+  contents: read
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: sweep
+        run: python3 .github/w14b10_sweep.py
